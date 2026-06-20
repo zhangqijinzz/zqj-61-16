@@ -88,4 +88,19 @@ export interface ScenarioResult {
   scenarioId: string
   choices: { sceneId: string; optionId: string }[]
   completedAt: string
+  playIndex: number
+  recommendedCount: number
+  totalChoices: number
+  recommendedRatio: number
+  starRating: number
+}
+
+export interface ScenarioChoiceDetail {
+  sceneId: string
+  sceneNarration: string
+  optionId: string
+  optionText: string
+  isRecommended: boolean
+  feedback: string
+  consequence: string
 }

@@ -24,6 +24,7 @@ export default function Theater() {
   const [activeTab, setActiveTab] = useState("全部")
   const navigate = useNavigate()
   const userProfile = useGameStore((s) => s.userProfile)
+  const getResultsForScenario = useGameStore((s) => s.getResultsForScenario)
 
   const filtered =
     activeTab === "全部"
@@ -75,13 +76,25 @@ export default function Theater() {
             const completed = userProfile?.completedScenarios.includes(
               scenario.id
             )
+            const playCount = getResultsForScenario(scenario.id).length
+            const isReplayable = playCount >= 1
             return (
               <motion.div
                 key={scenario.id}
                 variants={item}
                 onClick={() => navigate(`/theater/${scenario.id}`)}
-                className="card-adventure cursor-pointer hover:-translate-y-1 hover:shadow-card-hover"
+                className="card-adventure cursor-pointer hover:-translate-y-1 hover:shadow-card-hover relative overflow-hidden"
               >
+                {isReplayable && playCount >= 2 && (
+                  <div className="absolute top-2 right-2 rounded-full bg-gradient-to-r from-adventure-gold to-adventure-orange px-2 py-0.5 text-xs font-display text-white shadow-md">
+                    🔄 多周目探索
+                  </div>
+                )}
+                {isReplayable && playCount === 1 && (
+                  <div className="absolute top-2 right-2 rounded-full bg-gradient-to-r from-adventure-teal to-adventure-blue-light px-2 py-0.5 text-xs font-display text-white shadow-md">
+                    ⭐ 可二周目
+                  </div>
+                )}
                 <div className="mb-3 text-4xl">{scenario.emoji}</div>
                 <h3 className="mb-1 font-display text-lg text-adventure-blue">
                   {scenario.title}
@@ -89,13 +102,19 @@ export default function Theater() {
                 <p className="mb-4 line-clamp-2 font-body text-sm text-adventure-blue/60">
                   {scenario.description}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="rounded-full bg-adventure-pink/20 px-2 py-0.5 text-xs text-adventure-pink">
                     {scenario.ageRange}
                   </span>
                   <DifficultyBadge difficulty={scenario.difficulty} />
                   {completed && (
                     <span className="text-xs text-adventure-teal">✅ 已完成</span>
+                  )}
+                  {playCount > 1 && (
+                    <span className="text-xs text-adventure-orange">🎮 游玩 {playCount} 次</span>
+                  )}
+                  {isReplayable && playCount === 1 && (
+                    <span className="text-xs text-adventure-purple">💡 换个方式试试？</span>
                   )}
                 </div>
               </motion.div>

@@ -1,6 +1,57 @@
 import { create } from 'zustand'
-import { UserProfile, CharacterType, ScenarioResult, Mission, TreeHolePost, Reply } from '@/types'
+import { UserProfile, CharacterType, ScenarioResult, Mission, TreeHolePost, Reply, ScenarioChoiceDetail } from '@/types'
 import { treeHolePosts } from '@/data/treeHolePosts'
+import { scenarios } from '@/data/scenarios'
+
+function calculateStarRating(ratio: number): number {
+  if (ratio >= 0.8) return 3
+  if (ratio >= 0.5) return 2
+  return 1
+}
+
+function computeScenarioStats(
+  scenarioId: string,
+  choices: { sceneId: string; optionId: string }[]
+) {
+  const scenario = scenarios.find((s) => s.id === scenarioId)
+  if (!scenario) {
+    return { recommendedCount: 0, totalChoices: choices.length, recommendedRatio: 0, starRating: 1 }
+  }
+  let recommendedCount = 0
+  choices.forEach((choice) => {
+    const scene = scenario.scenes.find((s) => s.id === choice.sceneId)
+    if (!scene) return
+    const option = scene.options.find((o) => o.id === choice.optionId)
+    if (option?.isRecommended) {
+      recommendedCount++
+    }
+  })
+  const totalChoices = choices.length
+  const recommendedRatio = totalChoices > 0 ? recommendedCount / totalChoices : 0
+  const starRating = calculateStarRating(recommendedRatio)
+  return { recommendedCount, totalChoices, recommendedRatio, starRating }
+}
+
+function buildChoiceDetails(
+  scenarioId: string,
+  choices: { sceneId: string; optionId: string }[]
+): ScenarioChoiceDetail[] {
+  const scenario = scenarios.find((s) => s.id === scenarioId)
+  if (!scenario) return []
+  return choices.map((choice) => {
+    const scene = scenario.scenes.find((s) => s.id === choice.sceneId)
+    const option = scene?.options.find((o) => o.id === choice.optionId)
+    return {
+      sceneId: choice.sceneId,
+      sceneNarration: scene?.narration ?? '',
+      optionId: choice.optionId,
+      optionText: option?.text ?? '',
+      isRecommended: option?.isRecommended ?? false,
+      feedback: option?.feedback ?? '',
+      consequence: option?.consequence ?? '',
+    }
+  })
+}
 
 const STORAGE_KEY = 'dad-adventure-state'
 
@@ -36,11 +87,12 @@ interface GameState {
   scenarioResults: ScenarioResult[]
   missions: Mission[]
   posts: TreeHolePost[]
+  hasProgressStar: boolean
 }
 
 interface GameActions {
   createProfile: (characterType: CharacterType, nickname: string) => void
-  completeScenario: (scenarioId: string, choices: { sceneId: string; optionId: string }[]) => void
+  completeScenario: (scenarioId: string, choices: { sceneId: string; optionId: string }[]) => { isProgress: boolean; previousResult: ScenarioResult | null; newResult: ScenarioResult }
   unlockSkill: (skillId: string) => void
   toggleMission: (missionId: string) => void
   addMission: (mission: Mission) => void
@@ -49,6 +101,11 @@ interface GameActions {
   addReplyToPost: (postId: string, reply: Reply) => void
   togglePostLike: (postId: string) => void
   resetGame: () => void
+  getResultsForScenario: (scenarioId: string) => ScenarioResult[]
+  getLastResultForScenario: (scenarioId: string) => ScenarioResult | null
+  getChoiceDetailsForResult: (result: ScenarioResult) => ScenarioChoiceDetail[]
+  setProgressStar: (value: boolean) => void
+  clearProgressStar: () => void
 }
 
 type StoreType = GameState & GameActions
@@ -60,6 +117,7 @@ export const useGameStore = create<StoreType>()((set, get) => ({
   scenarioResults: savedState?.scenarioResults ?? [],
   missions: savedState?.missions ?? [],
   posts: savedState?.posts ?? treeHolePosts,
+  hasProgressStar: savedState?.hasProgressStar ?? false,
 
   createProfile: (characterType, nickname) => {
     const profile: UserProfile = {
@@ -80,27 +138,54 @@ export const useGameStore = create<StoreType>()((set, get) => ({
 
   completeScenario: (scenarioId, choices) => {
     const state = get()
-    if (!state.userProfile) return
+    if (!state.userProfile) {
+      const emptyResult: ScenarioResult = {
+        scenarioId,
+        choices,
+        completedAt: new Date().toISOString(),
+        playIndex: 0,
+        recommendedCount: 0,
+        totalChoices: 0,
+        recommendedRatio: 0,
+        starRating: 1,
+      }
+      return { isProgress: false, previousResult: null, newResult: emptyResult }
+    }
+
+    const existingResults = state.scenarioResults.filter((r) => r.scenarioId === scenarioId)
+    const playIndex = existingResults.length + 1
+    const stats = computeScenarioStats(scenarioId, choices)
+    const previousResult = existingResults.length > 0 ? existingResults[existingResults.length - 1] : null
 
     const result: ScenarioResult = {
       scenarioId,
       choices,
       completedAt: new Date().toISOString(),
+      playIndex,
+      ...stats,
     }
+
+    const isProgress = previousResult !== null && result.recommendedRatio > previousResult.recommendedRatio
 
     const newLevel = state.userProfile.level + 1
     const newTitle = getTitleByLevel(newLevel)
+    const alreadyCompleted = state.userProfile.completedScenarios.includes(scenarioId)
 
     set({
       scenarioResults: [...state.scenarioResults, result],
+      hasProgressStar: isProgress ? true : state.hasProgressStar,
       userProfile: {
         ...state.userProfile,
         level: newLevel,
         title: newTitle,
-        completedScenarios: [...state.userProfile.completedScenarios, scenarioId],
+        completedScenarios: alreadyCompleted
+          ? state.userProfile.completedScenarios
+          : [...state.userProfile.completedScenarios, scenarioId],
       },
     })
     saveToLocalStorage(get())
+
+    return { isProgress, previousResult, newResult: result }
   },
 
   unlockSkill: (skillId) => {
@@ -213,7 +298,33 @@ export const useGameStore = create<StoreType>()((set, get) => ({
       scenarioResults: [],
       missions: [],
       posts: treeHolePosts,
+      hasProgressStar: false,
     })
     localStorage.removeItem(STORAGE_KEY)
+  },
+
+  getResultsForScenario: (scenarioId) => {
+    const state = get()
+    return state.scenarioResults.filter((r) => r.scenarioId === scenarioId)
+  },
+
+  getLastResultForScenario: (scenarioId) => {
+    const state = get()
+    const results = state.scenarioResults.filter((r) => r.scenarioId === scenarioId)
+    return results.length > 0 ? results[results.length - 1] : null
+  },
+
+  getChoiceDetailsForResult: (result) => {
+    return buildChoiceDetails(result.scenarioId, result.choices)
+  },
+
+  setProgressStar: (value) => {
+    set({ hasProgressStar: value })
+    saveToLocalStorage(get())
+  },
+
+  clearProgressStar: () => {
+    set({ hasProgressStar: false })
+    saveToLocalStorage(get())
   },
 }))

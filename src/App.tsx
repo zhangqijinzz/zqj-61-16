@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
+import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import Onboarding from "@/pages/Onboarding";
 import Home from "@/pages/Home";
@@ -12,6 +13,7 @@ import Contract from "@/pages/Contract";
 import MiniGame from "@/pages/MiniGame";
 import TreeHole from "@/pages/TreeHole";
 import TreeHolePost from "@/pages/TreeHolePost";
+import { useGameStore } from "@/store/useGameStore";
 
 function LayoutWrapper() {
   return (
@@ -21,9 +23,24 @@ function LayoutWrapper() {
   );
 }
 
+function AppInitializer() {
+  const userProfile = useGameStore((s) => s.userProfile);
+  const clearProgressStar = useGameStore((s) => s.clearProgressStar);
+  const hasProgressStar = useGameStore((s) => s.hasProgressStar);
+
+  useEffect(() => {
+    if (userProfile && hasProgressStar) {
+      clearProgressStar();
+    }
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <AppInitializer />
       <Routes>
         <Route path="/" element={<Onboarding />} />
         <Route element={<LayoutWrapper />}>

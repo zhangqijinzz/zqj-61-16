@@ -26,6 +26,7 @@ export default function Home() {
   const navigate = useNavigate()
   const userProfile = useGameStore((s) => s.userProfile)
   const missions = useGameStore((s) => s.missions)
+  const hasProgressStar = useGameStore((s) => s.hasProgressStar)
 
   useEffect(() => {
     if (!userProfile) {
@@ -95,7 +96,11 @@ export default function Home() {
         <motion.section variants={staggerItem}>
           <div className="bg-gradient-to-b from-adventure-blue to-adventure-blue-light rounded-b-3xl p-8">
             <div className="max-w-lg mx-auto flex items-center gap-4">
-              <CharacterAvatar characterType={userProfile.characterType} size="lg" />
+              <CharacterAvatar
+                characterType={userProfile.characterType}
+                size="lg"
+                showProgressStar={hasProgressStar}
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-white font-display text-2xl truncate">

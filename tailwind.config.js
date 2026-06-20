@@ -24,6 +24,8 @@ export default {
           "teal-light": "#7EDDD6",
           gold: "#FFD93D",
           "gold-light": "#FFE570",
+          purple: "#9B5DE5",
+          "purple-light": "#B794F4",
         },
       },
       fontFamily: {
