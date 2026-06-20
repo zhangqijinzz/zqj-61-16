@@ -326,12 +326,15 @@ export default function TheaterPlay() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{
-                        width: `${Math.round(
-                          (celebrationData.newRatio - celebrationData.previousRatio) * 100 * 5
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            (celebrationData.newRatio - celebrationData.previousRatio) * 100 * 5
+                          )
                         )}%`,
                       }}
                       transition={{ delay: 1, duration: 0.8, ease: "easeOut" }}
-                      className="h-full bg-gradient-to-r from-adventure-teal to-white rounded-full flex items-center justify-end pr-1"
+                      className="h-full bg-gradient-to-r from-adventure-teal to-white rounded-full flex items-center justify-end pr-1 max-w-full"
                     >
                       <Sparkles size={12} className="text-adventure-orange" />
                     </motion.div>

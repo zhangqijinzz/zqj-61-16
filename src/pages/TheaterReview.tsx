@@ -195,7 +195,7 @@ function ResultCard({ title, result, details, variant, showBadge }: ResultCardPr
                       : d.optionText}
                   </span>
                   <span
-                    className={`shrink-0 text-[10px px-1.5 py-0.5 rounded ${
+                    className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${
                     d.isRecommended
                       ? "bg-adventure-teal/20 text-adventure-teal"
                       : "bg-adventure-gold/20 text-adventure-gold"
